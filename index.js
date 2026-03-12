@@ -2,8 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
-const dns = require('dns').promises;
-dns.setServers(['8.8.8.8', '1.1.1.1']);
 dotenv.config();
 const app = express();
 
@@ -27,7 +25,7 @@ const Book = mongoose.model('Book', bookSchema);
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log(err));
+  .catch(err => console.log('MongoDB Connection Error:', err));
 
 app.post('/api/books', async (req, res, next) => {
   try {
@@ -48,6 +46,36 @@ app.get('/api/books', async (req, res, next) => {
   }
 });
 
+// SEARCH ROUTE 
+app.get('/api/books/search', async (req, res, next) => {
+  try {
+    const { title } = req.query;
+    
+    if (!title) {
+      return res.status(400).json({ message: 'Title query parameter is required' });
+    }
+    
+    console.log('Searching for title:', title);
+    
+    const searchTitle = title.trim();
+    
+    const books = await Book.find({ 
+      title: { $regex: searchTitle, $options: 'i' } 
+    });
+    
+    console.log('Found books:', books.length);
+    
+    res.status(200).json(books);
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ 
+      message: 'Search failed', 
+      error: error.message  
+    });
+  }
+});
+
+// GET BY ID - 
 app.get('/api/books/:id', async (req, res, next) => {
   try {
     const book = await Book.findById(req.params.id);
@@ -88,24 +116,19 @@ app.delete('/api/books/:id', async (req, res, next) => {
   }
 });
 
-app.get('/api/books/search', async (req, res, next) => {
-  try {
-    const { title } = req.query;
-    const books = await Book.find({ title: { $regex: title, $options: 'i' } });
-    res.status(200).json(books);
-  } catch (error) {
-    next(error);
-  }
-});
-
 app.use((err, req, res, next) => {
+  console.log('ERROR HANDLER:', err);
+  
   if (err.name === 'ValidationError') {
     return res.status(400).json({ message: err.message });
   }
   if (err.code === 11000) {
     return res.status(400).json({ message: 'ISBN must be unique' });
   }
-  res.status(500).json({ message: 'Server error' });
+  res.status(500).json({ 
+    message: 'Server error',
+    error: err.message 
+  });
 });
 
 const PORT = process.env.PORT || 5000;
