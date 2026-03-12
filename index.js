@@ -27,7 +27,8 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log('MongoDB Connection Error:', err));
 
-app.post('/api/books', async (req, res, next) => {
+// POST - Add new book
+app.post('/books', async (req, res, next) => {
   try {
     const book = new Book(req.body);
     await book.save();
@@ -37,7 +38,8 @@ app.post('/api/books', async (req, res, next) => {
   }
 });
 
-app.get('/api/books', async (req, res, next) => {
+// GET - All books
+app.get('/books', async (req, res, next) => {
   try {
     const books = await Book.find();
     res.status(200).json(books);
@@ -46,8 +48,8 @@ app.get('/api/books', async (req, res, next) => {
   }
 });
 
-// SEARCH ROUTE 
-app.get('/api/books/search', async (req, res, next) => {
+// GET - Search books by title (YEH PEHLE ANA CHAHIYE)
+app.get('/books/search', async (req, res, next) => {
   try {
     const { title } = req.query;
     
@@ -57,10 +59,8 @@ app.get('/api/books/search', async (req, res, next) => {
     
     console.log('Searching for title:', title);
     
-    const searchTitle = title.trim();
-    
     const books = await Book.find({ 
-      title: { $regex: searchTitle, $options: 'i' } 
+      title: { $regex: title, $options: 'i' } 
     });
     
     console.log('Found books:', books.length);
@@ -68,15 +68,12 @@ app.get('/api/books/search', async (req, res, next) => {
     res.status(200).json(books);
   } catch (error) {
     console.error('Search error:', error);
-    res.status(500).json({ 
-      message: 'Search failed', 
-      error: error.message  
-    });
+    next(error);
   }
 });
 
-// GET BY ID - 
-app.get('/api/books/:id', async (req, res, next) => {
+// GET - Book by ID (YEH BAAD MEIN ANA CHAHIYE)
+app.get('/books/:id', async (req, res, next) => {
   try {
     const book = await Book.findById(req.params.id);
     if (!book) {
@@ -88,7 +85,8 @@ app.get('/api/books/:id', async (req, res, next) => {
   }
 });
 
-app.put('/api/books/:id', async (req, res, next) => {
+// PUT - Update book
+app.put('/books/:id', async (req, res, next) => {
   try {
     const book = await Book.findByIdAndUpdate(
       req.params.id,
@@ -104,7 +102,8 @@ app.put('/api/books/:id', async (req, res, next) => {
   }
 });
 
-app.delete('/api/books/:id', async (req, res, next) => {
+// DELETE - Delete book
+app.delete('/books/:id', async (req, res, next) => {
   try {
     const book = await Book.findByIdAndDelete(req.params.id);
     if (!book) {
@@ -116,8 +115,9 @@ app.delete('/api/books/:id', async (req, res, next) => {
   }
 });
 
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.log('ERROR HANDLER:', err);
+  console.log('Error:', err);
   
   if (err.name === 'ValidationError') {
     return res.status(400).json({ message: err.message });
@@ -125,10 +125,7 @@ app.use((err, req, res, next) => {
   if (err.code === 11000) {
     return res.status(400).json({ message: 'ISBN must be unique' });
   }
-  res.status(500).json({ 
-    message: 'Server error',
-    error: err.message 
-  });
+  res.status(500).json({ message: 'Server error' });
 });
 
 const PORT = process.env.PORT || 5000;
